@@ -313,10 +313,14 @@ if "Demo 1" in demo_selection:
             plt.tight_layout()
             st.pyplot(fig)
             
-            # Download button
+            # Download button - convert figure to bytes
+            buf = BytesIO()
+            fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+            buf.seek(0)
+            
             st.download_button(
                 label="📥 Download Plot",
-                data=fig,
+                data=buf.getvalue(),
                 file_name=f"ztransform_{signal_type.replace(' ', '_')}.png",
                 mime="image/png"
             )
