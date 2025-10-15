@@ -1,41 +1,8 @@
-"""
-╔══════════════════════════════════════════════════════════════════════════╗
-║           COMPLETE STREAMLIT - ALL 5 DEMOS + ANALYTICS                   ║
-║           Ready for Permanent Deployment                                 ║
-║                                                                          ║
-║  Dr. Ali Al-Ghanimi | University of Kufa                                ║
-║  Week 4: Z-Transform & Inverse Z-Transform                              ║
-╚══════════════════════════════════════════════════════════════════════════╝
-
-FEATURES:
-✅ All 5 demos in ONE file
-✅ Student usage tracking
-✅ Analytics dashboard
-✅ Professional UI
-✅ Permanent deployment ready
-✅ Mobile responsive
-
-DEPLOYMENT:
-1. Push this file to GitHub
-2. Go to share.streamlit.io
-3. Connect repository
-4. Get permanent URL: https://yourapp.streamlit.app
-5. Share with 80 students!
-
-ANALYTICS:
-- See which demos are most used
-- Track student engagement
-- Export usage data
-
-INSTALLATION:
-    pip install streamlit numpy matplotlib scipy control
-
-RUN LOCALLY:
-    streamlit run week4_complete.py
-
-DEPLOY:
-    See instructions at end of file
-"""
+# ═══════════════════════════════════════════════════════════════════
+# WEEK 4: Z-TRANSFORM INTERACTIVE DEMONSTRATIONS
+# Digital Control Systems | University of Kufa
+# Dr. Ali Al-Ghanimi | Electrical Engineering Department
+# ═══════════════════════════════════════════════════════════════════
 
 import streamlit as st
 import numpy as np
@@ -647,5 +614,3 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
-
-
