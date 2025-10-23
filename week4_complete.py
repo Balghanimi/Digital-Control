@@ -208,7 +208,7 @@ with st.sidebar:
     st.markdown("### 💬 Contact")
     st.markdown("""
     📧 ali.alghanimi@uokufa.edu.iq  
-    🏢 EE Building, Room 301  
+    🏢 EE Building, Room 115  
     🕐 Office Hours: Sun-Thu, 10-12 PM
     """)
 
@@ -1722,7 +1722,7 @@ st.markdown("""
     <div style='text-align: center; padding: 2rem; background: #f8f9fa; border-radius: 10px;'>
         <p><strong>📚 Digital Control Systems - Weeks 4, 5 & 6</strong></p>
         <p>Dr. Ali Al-Ghanimi | Electrical Engineering | University of Kufa</p>
-        <p>📧 ali.alghanimi@uokufa.edu.iq | 🏢 EE Building, Room 301</p>
+        <p>📧 ali.alghanimi@uokufa.edu.iq | 🏢 EE Building, Room 115</p>
         <p style='font-size: 0.9rem; color: #666; margin-top: 1rem;'>
             © 2025 University of Kufa | All rights reserved
         </p>
