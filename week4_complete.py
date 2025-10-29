@@ -39,7 +39,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'Get Help': 'mailto:ali.alghanimi@uokufa.edu.iq',
+        'Get Help': 'mailto:alih.alghanimi@uokufa.edu.iq',
         'About': 'Digital Control Systems - University of Kufa'
     }
 )
@@ -311,6 +311,8 @@ def bilinear_transform(coeffs_z):
     For a polynomial Q(z) = sum(a_i * z^i), substitute z = (1+w)/(1-w)
     and expand to get Q(w).
     """
+    # Ensure all coefficients are float type
+    coeffs_z = [float(c) for c in coeffs_z]
     n = len(coeffs_z) - 1
     
     # For simple 2nd order case (most common)
@@ -319,12 +321,12 @@ def bilinear_transform(coeffs_z):
         # Q(z) = a2*z^2 + a1*z + a0
         # Substitute z = (1+w)/(1-w) and expand
         # After algebra, Q(w) = b2*w^2 + b1*w + b0
-        b0 = a2 + a1 + a0
-        b1 = 2*(a2 - a0)
-        b2 = a2 - a1 + a0
+        b0 = float(a2 + a1 + a0)
+        b1 = float(2*(a2 - a0))
+        b2 = float(a2 - a1 + a0)
         
         # Normalize
-        if b2 != 0:
+        if abs(b2) > 1e-10:
             return np.array([b0/b2, b1/b2, 1.0])
         else:
             return np.array([b0, b1, b2])
@@ -333,13 +335,13 @@ def bilinear_transform(coeffs_z):
     elif n == 3:
         a0, a1, a2, a3 = coeffs_z
         # After substitution and expansion
-        b0 = a3 + a2 + a1 + a0
-        b1 = 3*a3 + a2 - a1 - 3*a0
-        b2 = 3*a3 - a2 - a1 + 3*a0
-        b3 = a3 - a2 + a1 - a0
+        b0 = float(a3 + a2 + a1 + a0)
+        b1 = float(3*a3 + a2 - a1 - 3*a0)
+        b2 = float(3*a3 - a2 - a1 + 3*a0)
+        b3 = float(a3 - a2 + a1 - a0)
         
         # Normalize
-        if b3 != 0:
+        if abs(b3) > 1e-10:
             return np.array([b0/b3, b1/b3, b2/b3, 1.0])
         else:
             return np.array([b0, b1, b2, b3])
@@ -1501,7 +1503,8 @@ elif "Week 6" in week_selection:
                 coeffs_z = [0.5, -1.5, 1.0]
             elif example == "Parametric (K=1.2)":
                 K = 1.2
-                coeffs_z = [0.368 + 0.264*K, 0.368*K - 1.368, 1.0]
+                # Ensure float conversion
+                coeffs_z = [float(0.368 + 0.264*K), float(0.368*K - 1.368), 1.0]
             else:
                 order = st.slider("Polynomial order:", 2, 4, 2, key="routh_order")
                 coeffs_z = []
@@ -1509,7 +1512,7 @@ elif "Week 6" in week_selection:
                     c = st.number_input(f"a{i} (z^{i}):", -10.0, 10.0, 
                                        1.0 if i == order else 0.0, 
                                        key=f"routh_c{i}")
-                    coeffs_z.append(c)
+                    coeffs_z.append(float(c))
         
         with col2:
             st.markdown("### 📊 Routh Analysis")
@@ -1519,13 +1522,26 @@ elif "Week 6" in week_selection:
                 st.markdown("#### Step 1: Bilinear Transformation")
                 
                 try:
-                    coeffs_w = bilinear_transform(coeffs_z)
+                    # Ensure coefficients are numpy array of floats
+                    coeffs_z_array = np.array(coeffs_z, dtype=float)
                     
-                    poly_z_str = " + ".join([f"({c:.3f})z^{i}" for i, c in enumerate(coeffs_z)])
-                    st.latex(f"Q(z) = {poly_z_str}")
+                    # Bilinear transformation
+                    try:
+                        coeffs_w = bilinear_transform(coeffs_z_array)
+                    except Exception as e:
+                        st.error(f"Error in bilinear transformation: {str(e)}")
+                        raise
                     
-                    poly_w_str = " + ".join([f"({c:.4f})w^{i}" for i, c in enumerate(coeffs_w)])
-                    st.latex(f"Q_w(w) = {poly_w_str}")
+                    # Display polynomials
+                    try:
+                        poly_z_str = " + ".join([f"({c:.3f})z^{i}" for i, c in enumerate(coeffs_z_array)])
+                        st.latex(f"Q(z) = {poly_z_str}")
+                        
+                        poly_w_str = " + ".join([f"({c:.4f})w^{i}" for i, c in enumerate(coeffs_w)])
+                        st.latex(f"Q_w(w) = {poly_w_str}")
+                    except Exception as e:
+                        st.error(f"Error displaying polynomials: {str(e)}")
+                        raise
                     
                     # Step 2: Construct Routh array
                     st.markdown("#### Step 2: Routh Array")
@@ -1607,7 +1623,8 @@ elif "Week 6" in week_selection:
                         st.warning("⚠️ Results differ. Check for numerical errors.")
                     
                 except Exception as e:
-                    st.error(f"Error: {str(e)}")
+                    st.error(f"Error during analysis: {str(e)}")
+                    st.info("Try a different polynomial or check coefficient values.")
 
 # ═══════════════════════════════════════════════════════════════════
 # FOOTER
