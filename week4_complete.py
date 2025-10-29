@@ -26,7 +26,6 @@ from scipy import signal
 import control as ct
 import pandas as pd
 from datetime import datetime
-import sympy as sp
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -40,7 +39,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'Get Help': 'mailto:alih.alghanimi@uokufa.edu.iq',
+        'Get Help': 'mailto:ali.alghanimi@uokufa.edu.iq',
         'About': 'Digital Control Systems - University of Kufa'
     }
 )
@@ -242,11 +241,11 @@ def jury_test(coeffs):
         return False, details
     
     # Condition 3: |a0| < an
-    cond3_pass = abs(a[0]) < a[n]
+    cond3_pass = abs(a[0]) < abs(a[n])
     details['conditions'].append({
         'number': 3,
-        'description': '|a0| < an',
-        'value': f'|{a[0]:.4f}| < {a[n]:.4f}',
+        'description': '|a0| < |an|',
+        'value': f'|{a[0]:.4f}| < |{a[n]:.4f}|',
         'pass': cond3_pass
     })
     
@@ -254,88 +253,114 @@ def jury_test(coeffs):
         details['failed_at'] = 3
         return False, details
     
-    # Build Jury table
-    table = [a.copy()]
-    table.append(a[::-1])
-    details['jury_table'] = table.copy()
-    
-    # For n >= 2, build additional rows
+    # Build Jury table for n >= 2
     if n >= 2:
-        current_row = a
-        row_number = 3
+        # Initialize table rows
+        table_rows = []
+        table_rows.append(a.copy())  # Row 1: coefficients
+        table_rows.append(a[::-1].copy())  # Row 2: reversed coefficients
+        
+        current_coeffs = a.copy()
         condition_number = 4
         
-        while len(current_row) > 2:
-            # Compute next odd row using determinants
-            next_row = []
-            m = len(current_row) - 1
+        for row_idx in range(n - 1):
+            # Create new row using determinants
+            new_row_len = len(current_coeffs) - 1
+            new_row = np.zeros(new_row_len)
             
-            for k in range(m):
-                det = current_row[0] * current_row[m-k] - current_row[m] * current_row[k]
-                next_row.append(det)
+            for j in range(new_row_len):
+                # Calculate determinant: |a0 a_{n-j}|
+                #                        |an a_j    |
+                det = current_coeffs[0] * current_coeffs[-(j+2)] - current_coeffs[-1] * current_coeffs[j]
+                new_row[j] = det
             
-            next_row = np.array(next_row)
-            table.append(next_row)
-            details['jury_table'].append(next_row.copy())
+            if new_row_len > 0:
+                # Check condition |b0| > |b_{n-1}|
+                cond_pass = abs(new_row[0]) > abs(new_row[-1])
+                details['conditions'].append({
+                    'number': condition_number,
+                    'description': f'Row {row_idx + 3}: |first| > |last|',
+                    'value': f'|{new_row[0]:.4f}| > |{new_row[-1]:.4f}|',
+                    'pass': cond_pass
+                })
+                
+                if not cond_pass:
+                    details['failed_at'] = condition_number
+                    return False, details
+                
+                condition_number += 1
             
-            # Add reversed row
-            table.append(next_row[::-1])
-            details['jury_table'].append(next_row[::-1].copy())
+            table_rows.append(new_row.copy())
+            if new_row_len > 1:
+                table_rows.append(new_row[::-1].copy())
             
-            # Check condition
-            cond_pass = abs(next_row[0]) > abs(next_row[-1])
-            details['conditions'].append({
-                'number': condition_number,
-                'description': f'|b{row_number-2}[0]| > |b{row_number-2}[-1]|',
-                'value': f'|{next_row[0]:.4f}| > |{next_row[-1]:.4f}|',
-                'pass': cond_pass
-            })
+            current_coeffs = new_row.copy()
             
-            if not cond_pass:
-                details['failed_at'] = condition_number
-                return False, details
-            
-            current_row = next_row
-            row_number += 2
-            condition_number += 1
+            if len(current_coeffs) <= 1:
+                break
+        
+        details['jury_table'] = table_rows
     
     return True, details
 
 def bilinear_transform(coeffs_z):
     """
-    Apply bilinear transformation w = (z-1)/(z+1)
+    Apply bilinear transformation w = (z-1)/(z+1) or z = (1+w)/(1-w)
     Source: Chakrabortty Ch.7, pp.234-236
+    
+    For a polynomial Q(z) = sum(a_i * z^i), substitute z = (1+w)/(1-w)
+    and expand to get Q(w).
     """
-    z = sp.Symbol('z')
-    w = sp.Symbol('w')
+    n = len(coeffs_z) - 1
     
-    # Create polynomial in z
-    poly_z = 0
-    for i, coeff in enumerate(coeffs_z):
-        poly_z += coeff * z**i
-    
-    # Apply transformation z = (1+w)/(1-w)
-    z_transform = (1 + w) / (1 - w)
-    poly_w = poly_z.subs(z, z_transform)
-    poly_w = sp.simplify(poly_w)
-    
-    # Extract coefficients
-    poly_w_expanded = sp.expand(poly_w * (1 - w)**len(coeffs_z))
-    poly_w_expanded = sp.collect(poly_w_expanded, w)
-    
-    coeffs_w = []
-    for i in range(len(coeffs_z)):
-        coeff = poly_w_expanded.coeff(w, i)
-        if coeff is not None:
-            coeffs_w.append(float(coeff))
+    # For simple 2nd order case (most common)
+    if n == 2:
+        a0, a1, a2 = coeffs_z
+        # Q(z) = a2*z^2 + a1*z + a0
+        # Substitute z = (1+w)/(1-w) and expand
+        # After algebra, Q(w) = b2*w^2 + b1*w + b0
+        b0 = a2 + a1 + a0
+        b1 = 2*(a2 - a0)
+        b2 = a2 - a1 + a0
+        
+        # Normalize
+        if b2 != 0:
+            return np.array([b0/b2, b1/b2, 1.0])
         else:
-            coeffs_w.append(0)
+            return np.array([b0, b1, b2])
     
-    # Normalize
-    if coeffs_w[-1] != 0:
-        coeffs_w = [c/coeffs_w[-1] for c in coeffs_w]
+    # For 3rd order
+    elif n == 3:
+        a0, a1, a2, a3 = coeffs_z
+        # After substitution and expansion
+        b0 = a3 + a2 + a1 + a0
+        b1 = 3*a3 + a2 - a1 - 3*a0
+        b2 = 3*a3 - a2 - a1 + 3*a0
+        b3 = a3 - a2 + a1 - a0
+        
+        # Normalize
+        if b3 != 0:
+            return np.array([b0/b3, b1/b3, b2/b3, 1.0])
+        else:
+            return np.array([b0, b1, b2, b3])
     
-    return coeffs_w, poly_w
+    # For higher orders, use general formula
+    else:
+        from scipy.special import comb
+        coeffs_w = np.zeros(n + 1)
+        
+        for i in range(n + 1):
+            for k in range(n + 1):
+                # Coefficient contribution from binomial expansion
+                for j in range(k + 1):
+                    if i == n - k + 2*j:
+                        coeffs_w[i] += coeffs_z[k] * comb(k, j, exact=True) * ((-1)**(k-j))
+        
+        # Normalize
+        if coeffs_w[-1] != 0:
+            coeffs_w = coeffs_w / coeffs_w[-1]
+        
+        return coeffs_w
 
 def routh_array(coeffs):
     """
@@ -344,37 +369,51 @@ def routh_array(coeffs):
     """
     n = len(coeffs) - 1
     
-    # Initialize array
-    routh = np.zeros((n + 1, (n + 2) // 2 + 1))
+    # Initialize array with proper size
+    cols = (n + 2) // 2 + 1
+    routh = np.zeros((n + 1, cols))
     
-    # First row: odd coefficients
-    routh[0, :len(coeffs[::2])] = coeffs[::2][::-1]
+    # First row: coefficients with even indices (in reverse order)
+    for i in range(0, len(coeffs), 2):
+        if i // 2 < cols:
+            routh[0, i // 2] = coeffs[n - i]
     
-    # Second row: even coefficients
+    # Second row: coefficients with odd indices (in reverse order)
     if n > 0:
-        routh[1, :len(coeffs[1::2])] = coeffs[1::2][::-1]
+        for i in range(1, len(coeffs), 2):
+            if i // 2 < cols:
+                routh[1, i // 2] = coeffs[n - i]
     
-    # Compute remaining rows
+    # Calculate remaining rows
     for i in range(2, n + 1):
-        for j in range((n + 2 - i) // 2 + 1):
-            if j < routh.shape[1] - 1:
-                if routh[i-1, 0] != 0:
-                    det = routh[i-2, 0] * routh[i-1, j+1] - routh[i-2, j+1] * routh[i-1, 0]
-                    routh[i, j] = det / routh[i-1, 0]
-                else:
-                    routh[i, j] = 0
+        for j in range(cols - 1):
+            if routh[i-1, 0] != 0:
+                if j + 1 < cols:
+                    numerator = routh[i-2, 0] * routh[i-1, j+1] - routh[i-2, j+1] * routh[i-1, 0]
+                    routh[i, j] = numerator / routh[i-1, 0]
+            else:
+                # Handle zero in first column by using small epsilon
+                eps = 1e-10
+                if j + 1 < cols:
+                    numerator = routh[i-2, 0] * routh[i-1, j+1] - routh[i-2, j+1] * eps
+                    routh[i, j] = numerator / eps
     
     return routh
 
 def check_routh_stability(routh):
     """Check stability from Routh array"""
     first_col = routh[:, 0]
-    first_col = first_col[first_col != 0]
     
+    # Count sign changes in first column
     sign_changes = 0
-    for i in range(len(first_col) - 1):
-        if first_col[i] * first_col[i+1] < 0:
-            sign_changes += 1
+    prev_sign = np.sign(first_col[0]) if first_col[0] != 0 else 1
+    
+    for val in first_col[1:]:
+        if val != 0:
+            curr_sign = np.sign(val)
+            if prev_sign * curr_sign < 0:
+                sign_changes += 1
+            prev_sign = curr_sign
     
     return sign_changes == 0, sign_changes
 
@@ -1168,8 +1207,11 @@ elif "Week 6" in week_selection:
                             row_labels.append(f"Row {i+1} (b{(i-1)//2})")
                     
                     df = pd.DataFrame(table_data, index=row_labels)
-                    df = df.applymap(lambda x: f"{x:.6f}" if not np.isnan(x) else "")
-                    st.dataframe(df, use_container_width=True)
+                    # Format dataframe - use map instead of applymap for newer pandas
+                    formatted_df = df.copy()
+                    for col in formatted_df.columns:
+                        formatted_df[col] = formatted_df[col].apply(lambda x: f"{x:.6f}" if not np.isnan(x) else "")
+                    st.dataframe(formatted_df, use_container_width=True)
                 
                 # Final result
                 if is_stable:
@@ -1348,7 +1390,7 @@ elif "Week 6" in week_selection:
             
             if st.button("🚀 Apply Transform", type="primary"):
                 try:
-                    w_coeffs, poly_w = bilinear_transform(coeffs_z)
+                    w_coeffs = bilinear_transform(coeffs_z)
                     
                     # Display polynomials
                     poly_z_str = " + ".join([f"({c:.3f})z^{i}" for i, c in enumerate(coeffs_z)])
@@ -1356,7 +1398,8 @@ elif "Week 6" in week_selection:
                     st.latex(f"Q(z) = {poly_z_str}")
                     
                     st.markdown("**Q(w) after transformation:**")
-                    st.latex(f"Q(w) = {sp.latex(poly_w)}")
+                    poly_w_str = " + ".join([f"({c:.3f})w^{i}" for i, c in enumerate(w_coeffs)])
+                    st.latex(f"Q(w) = {poly_w_str}")
                     
                     # Calculate roots
                     roots_z = np.roots(coeffs_z[::-1])
@@ -1476,7 +1519,7 @@ elif "Week 6" in week_selection:
                 st.markdown("#### Step 1: Bilinear Transformation")
                 
                 try:
-                    coeffs_w, poly_w = bilinear_transform(coeffs_z)
+                    coeffs_w = bilinear_transform(coeffs_z)
                     
                     poly_z_str = " + ".join([f"({c:.3f})z^{i}" for i, c in enumerate(coeffs_z)])
                     st.latex(f"Q(z) = {poly_z_str}")
